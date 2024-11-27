@@ -199,7 +199,7 @@ def main_process(ref_audio, ref_text, text_gen, model_obj, mel_spec_type, remove
         ref_text = voices[voice]["ref_text"]
         print(f"Voice: {voice}")
         audio, final_sample_rate, spectragram = infer_process(
-            ref_audio, ref_text, gen_text, model_obj, vocoder, mel_spec_type=mel_spec_type, speed=speed
+            ref_audio, ref_text, gen_text, model_obj, vocoder, device="cuda" ,cross_fade_duration=0.48, mel_spec_type=mel_spec_type, speed=speed
         )
         
         # Check if generated chunk is less than 80% of ref audio length
@@ -213,7 +213,7 @@ def main_process(ref_audio, ref_text, text_gen, model_obj, mel_spec_type, remove
                 os.remove(chunk_path)
             # Regenerate chunk
             audio, final_sample_rate, spectragram = infer_process(
-                ref_audio, ref_text, gen_text, model_obj, vocoder, mel_spec_type=mel_spec_type, speed=speed
+                ref_audio, ref_text, gen_text, model_obj, vocoder, cross_fade_duration=0.38 ,mel_spec_type=mel_spec_type, fix_duration=ref_audio_length
             )
         
         generated_audio_segments.append(audio)
