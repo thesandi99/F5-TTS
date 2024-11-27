@@ -75,7 +75,7 @@ parser.add_argument(
     "--remove_silence",
     help="Remove silence.",
 )
-parser.add_argument("--vocoder_name", type=str, default="bigvgan", choices=["vocos", "bigvgan"], help="vocoder name")
+parser.add_argument("--vocoder_name", type=str, default="vocos", choices=["vocos", "bigvgan"], help="vocoder name")
 parser.add_argument(
     "--load_vocoder_from_local",
     action="store_true",
@@ -110,13 +110,14 @@ if "voices" in config:
 if gen_file:
     gen_text = codecs.open(gen_file, "r", "utf-8").read()
 output_dir = args.output_dir if args.output_dir else config["output_dir"]
+output_file = args.output_file if args.output_file else "output.wav"
 model = args.model if args.model else config["model"]
 ckpt_file = args.ckpt_file if args.ckpt_file else ""
 vocab_file = args.vocab_file if args.vocab_file else ""
 remove_silence = args.remove_silence if args.remove_silence else config["remove_silence"]
 speed = args.speed
 
-wave_path = Path(output_dir) #/ output_file
+wave_path = Path(output_dir) / output_file
 # spectrogram_path = Path(output_dir) / "infer_cli_out.png"
 
 vocoder_name = args.vocoder_name
@@ -198,8 +199,8 @@ def main_process(ref_audio, ref_text, text_gen, model_obj, mel_spec_type, remove
         ref_audio = voices[voice]["ref_audio"]
         ref_text = voices[voice]["ref_text"]
         print(f"Voice: {voice}")
-        audio, final_sample_rate, spectragram = infer_process(
-            ref_audio, ref_text, gen_text, model_obj, vocoder, device="cuda" ,cross_fade_duration=0.48, mel_spec_type=mel_spec_type, speed=speed
+        audio, final_sample_rate,spectragram = infer_process(
+            ref_audio, ref_text, gen_text, model_obj, vocoder, cross_fade_duration=0.48, mel_spec_type=mel_spec_type, speed=speed
         )
         
         # Check if generated chunk is less than 80% of ref audio length
