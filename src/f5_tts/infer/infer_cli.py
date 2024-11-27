@@ -84,8 +84,8 @@ parser.add_argument(
 parser.add_argument(
     "--speed",
     type=float,
-    default=1.0,
-    help="Adjust the speed of the audio generation (default: 1.0)",
+    default=0.94,
+    help="Adjust the speed of the audio generation (default: 0.94)",
 )
 args = parser.parse_args()
 
@@ -110,7 +110,7 @@ if "voices" in config:
 if gen_file:
     gen_text = codecs.open(gen_file, "r", "utf-8").read()
 output_dir = args.output_dir if args.output_dir else config["output_dir"]
-output_file = args.output_file if args.output_file else config["output_file"]
+output_file = args.output_file if args.output_file else "output.wav"
 model = args.model if args.model else config["model"]
 ckpt_file = args.ckpt_file if args.ckpt_file else ""
 vocab_file = args.vocab_file if args.vocab_file else ""
@@ -200,16 +200,33 @@ def main_process(ref_audio, ref_text, text_gen, model_obj, mel_spec_type, remove
         ref_text = voices[voice]["ref_text"]
         print(f"Voice: {voice}")
         audio, final_sample_rate, spectragram = infer_process(
-            ref_audio, ref_text, gen_text, model_obj, vocoder, mel_spec_type=mel_spec_type, speed=speed
+            ref_audio, ref_text, gen_text, model_obj, vocoder, cross_fade_duration=0.48, mel_spec_type=mel_spec_type, speed=speed
         )
+        
+        # Check if generated chunk is less than 80% of ref audio length
+        ref_audio_length = sf.info(ref_audio).duration
+        if len(audio) / final_sample_rate < 0.8 * ref_audio_length:
+            print("Generated chunk is less than 80% of ref audio length. Regenerating...")
+            # Remove previously saved chunk
+            chunk_dir = "/content/aud/chunk"
+            chunk_path = os.path.join(chunk_dir, f"chunk_{len(generated_audio_segments)}.wav")
+            if os.path.exists(chunk_path):
+                os.remove(chunk_path)
+            # Regenerate chunk
+            audio, final_sample_rate, spectragram = infer_process(
+                ref_audio, ref_text, gen_text, model_obj, vocoder, cross_fade_duration=0.38 ,mel_spec_type=mel_spec_type, fix_duration=ref_audio_length
+            )
+        
         generated_audio_segments.append(audio)
 
     if generated_audio_segments:
         final_wave = np.concatenate(generated_audio_segments)
 
+        # Save final concatenated audio
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
+        # Save entire wave file
         with open(wave_path, "wb") as f:
             sf.write(f.name, final_wave, final_sample_rate)
             # Remove silence
@@ -217,10 +234,19 @@ def main_process(ref_audio, ref_text, text_gen, model_obj, mel_spec_type, remove
                 remove_silence_for_generated_wav(f.name)
             print(f.name)
 
+        # Ensure the chunk directory exists
+        chunk_dir = "/content/aud/chunk"
+        if not os.path.exists(chunk_dir):
+            os.makedirs(chunk_dir)
+
+        # Save individual chunks as separate files
+        for idx, segment in enumerate(generated_audio_segments):
+            chunk_path = os.path.join(chunk_dir, f"chunk_{idx}.wav")
+            sf.write(chunk_path, segment, final_sample_rate)
+            print(f"Saved chunk {idx} at {chunk_path}")
 
 def main():
     main_process(ref_audio, ref_text, gen_text, ema_model, mel_spec_type, remove_silence, speed)
-
 
 if __name__ == "__main__":
     main()
